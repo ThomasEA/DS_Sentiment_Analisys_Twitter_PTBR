@@ -9,14 +9,19 @@ Análise de sentimento sobre tweets em PT-BR, classificados como negativo, neutr
 
 import nltk
 import re
+import random
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 from sklearn.model_selection import cross_val_predict
+from nltk.corpus import stopwords
+
+##Faz o download das stopwords
+#nltk.download('stopwords')
 
 #carrega o dataset de tweets
-dataset = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
+df = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
 
 ##imprime os primeiros 5 registros
 #print(dataset.head) 
@@ -42,6 +47,15 @@ dataset = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
 ##filtra o dataset por uma determinada coluna
 #print(dataset[dataset.Classificacao == 'Positivo'].count())
 
+######################################################################################
+#faz um shuffle dos dados
+#
+#   IMPORTANTE: SÓ COM O SHUFFLE GANHA 5% DE ACURÁCIA E RECALL/PRECISION VÃO A 0.96
+######################################################################################
+dataset = df.sample(frac=1).reset_index(drop=True)
+
+stops = set(stopwords.words("portuguese"))
+
 ######################################
 # Separando os dados em suas classes
 ######################################
@@ -57,7 +71,16 @@ classificacao = dataset["Classificacao"].values
 # [1,8,2,6] -> frequencia com que as palavras ocorrem e sua relação com a classificação (neutro, positivo, negativo)
 ######################################
 
-vectorizer = CountVectorizer(analyzer = "word")
+vectorizer = CountVectorizer(analyzer = "word", ngram_range=(1,2), stop_words = stops, lowercase=False)#, min_df = 1)
+
+#    lowercase (default True) convert all text to lowercase before tokenizing
+#    min_df (default 1) remove terms from the vocabulary that occur in fewer than min_df documents (in a large corpus this may be set to 15 or higher to eliminate very rare words)
+#    vocabulary ignore words that do not appear in the provided list of words
+#    strip_accents remove accents
+#    token_pattern (default u'(?u)\b\w\w+\b') regular expression identifying tokens–by default words that consist of a single character (e.g., ‘a’, ‘2’) are ignored, setting token_pattern to '(?u)\b\w+\b' will include these tokens
+#    tokenizer (default unused) use a custom function for tokenizing
+
+
 freq_tweets = vectorizer.fit_transform(tweets)
 
 #Aplica o algoritmo Naive Bayes para treinar sobre os dados
