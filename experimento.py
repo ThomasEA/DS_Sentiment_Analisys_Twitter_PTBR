@@ -11,11 +11,19 @@ import nltk
 import re
 import random
 import pandas as pd
+import numpy as np
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 from sklearn.model_selection import cross_val_predict
 from nltk.corpus import stopwords
+
+from wordcloud import WordCloud
+
 
 ##Faz o download das stopwords
 #nltk.download('stopwords')
@@ -47,6 +55,13 @@ df = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
 ##filtra o dataset por uma determinada coluna
 #print(dataset[dataset.Classificacao == 'Positivo'].count())
 
+print(dataset.Classificacao.value_counts())
+
+################################################################
+# Faz uma limpeza prévia da coluna de texto do tweet
+################################################################
+df.Text = df.Text.apply(lambda text: re.sub(r"http\S+", "", text, flags=re.MULTILINE))
+
 ######################################################################################
 #faz um shuffle dos dados
 #
@@ -55,6 +70,19 @@ df = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
 dataset = df.sample(frac=1).reset_index(drop=True)
 
 stops = set(stopwords.words("portuguese"))
+
+######################################
+# Cria nuvem de palavras para os registro do tipo Positivo
+######################################
+
+wc_positivo = WordCloud(background_color='blue',  stopwords=stops, max_words=40).generate(' '.join(dataset[dataset.Classificacao == 'Positivo'].Text))
+wc_negativo = WordCloud(background_color='red',   stopwords=stops, max_words=40).generate(' '.join(dataset[dataset.Classificacao == 'Negativo'].Text))
+wc_neutro   = WordCloud(background_color='white', stopwords=stops, max_words=40).generate(' '.join(dataset[dataset.Classificacao == 'Neutro'].Text))
+
+# Generate plot
+plt.imshow(wc_neutro)
+plt.axis("off")
+plt.show()
 
 ######################################
 # Separando os dados em suas classes
@@ -71,7 +99,7 @@ classificacao = dataset["Classificacao"].values
 # [1,8,2,6] -> frequencia com que as palavras ocorrem e sua relação com a classificação (neutro, positivo, negativo)
 ######################################
 
-vectorizer = CountVectorizer(analyzer = "word", ngram_range=(1,2), stop_words = stops, lowercase=False)#, min_df = 1)
+vectorizer = CountVectorizer(analyzer = "word")#, ngram_range=(1,2))#, stop_words = stops, lowercase=False)#, min_df = 1)
 
 #    lowercase (default True) convert all text to lowercase before tokenizing
 #    min_df (default 1) remove terms from the vocabulary that occur in fewer than min_df documents (in a large corpus this may be set to 15 or higher to eliminate very rare words)
@@ -82,6 +110,8 @@ vectorizer = CountVectorizer(analyzer = "word", ngram_range=(1,2), stop_words = 
 
 
 freq_tweets = vectorizer.fit_transform(tweets)
+
+words = np.array(vectorizer.get_feature_names())
 
 #Aplica o algoritmo Naive Bayes para treinar sobre os dados
 modelo = MultinomialNB()
