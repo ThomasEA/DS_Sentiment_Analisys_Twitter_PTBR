@@ -13,83 +13,63 @@ import random
 import pandas as pd
 import numpy as np
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+import clean_data as clean
+import vis_data as visualization
+import process_model as process_model
+
+from sklearn.cross_validation import train_test_split
+
 
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import LinearSVC
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 from sklearn.model_selection import cross_val_predict
-from nltk.corpus import stopwords
-
-from wordcloud import WordCloud
 
 
-##Faz o download das stopwords
-#nltk.download('stopwords')
+
+# Limpa as variáveis a cada execução
+def clear_all():
+    """Clears all the variables from the workspace of the spyder application."""
+    gl = globals().copy()
+    for var in gl:
+        if var[0] == '_': continue
+        if 'func' in str(globals()[var]): continue
+        if 'module' in str(globals()[var]): continue
+
+clear_all()
+
+generate_visualization = True
 
 #carrega o dataset de tweets
 df = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
 
-##imprime os primeiros 5 registros
-#print(dataset.head) 
-
-##imprime sumarização das linhas e colunas
-#print(dataset.count())
-
-##imprime o primeiro registro
-#print(dataset.iloc[0])
-
-##imprime os registro 0, 10 e 20
-#print(dataset.iloc[[0,10,20]]['Classificacao'])
-
-##imprime as colunas do dataset
-#print(dataset.columns)
-
-##imprime os últimos 5 registros
-#print(dataset.tail())
-
-##importante: apresenta uma análise estatística para cada coluna do dataset
-#print(dataset.describe())
-
-##filtra o dataset por uma determinada coluna
-#print(dataset[dataset.Classificacao == 'Positivo'].count())
-
-print(dataset.Classificacao.value_counts())
-
 ################################################################
 # Faz uma limpeza prévia da coluna de texto do tweet
 ################################################################
-df.Text = df.Text.apply(lambda text: re.sub(r"http\S+", "", text, flags=re.MULTILINE))
+dataset = clean.clean_data(dataset=df, shuffle=False)
 
-######################################################################################
-#faz um shuffle dos dados
-#
-#   IMPORTANTE: SÓ COM O SHUFFLE GANHA 5% DE ACURÁCIA E RECALL/PRECISION VÃO A 0.96
-######################################################################################
-dataset = df.sample(frac=1).reset_index(drop=True)
-
-stops = set(stopwords.words("portuguese"))
-
-######################################
-# Cria nuvem de palavras para os registro do tipo Positivo
-######################################
-
-wc_positivo = WordCloud(background_color='blue',  stopwords=stops, max_words=40).generate(' '.join(dataset[dataset.Classificacao == 'Positivo'].Text))
-wc_negativo = WordCloud(background_color='red',   stopwords=stops, max_words=40).generate(' '.join(dataset[dataset.Classificacao == 'Negativo'].Text))
-wc_neutro   = WordCloud(background_color='white', stopwords=stops, max_words=40).generate(' '.join(dataset[dataset.Classificacao == 'Neutro'].Text))
-
-# Generate plot
-plt.imshow(wc_neutro)
-plt.axis("off")
-plt.show()
-
+dataset, stops = clean.apply_text_processing(dataset)
 ######################################
 # Separando os dados em suas classes
 ######################################
 tweets = dataset["Text"].values
-
 classificacao = dataset["Classificacao"].values
+
+######################################
+# Divide o dataset:
+#   80% para treino
+#   20% para teste
+######################################
+SEED = 8188
+x_train, x_test, y_train, y_test = train_test_split(tweets, classificacao, test_size=.2, random_state=SEED)
+
+print("Total de instâncias de treino {0} com {1:.2f}% Negativo, {2:.2f}% Positivo, {2:.2f}% Neutro".format(
+        len(x_train), 
+        (len(x_train[y_train == 'Positivo']) / (len(x_train)*1.))*100,
+        (len(x_train[y_train == 'Negativo']) / (len(x_train)*1.))*100,
+        (len(x_train[y_train == 'Neutro']) / (len(x_train)*1.))*100))
 
 ######################################
 # Abordagem Bag of Words
@@ -99,36 +79,15 @@ classificacao = dataset["Classificacao"].values
 # [1,8,2,6] -> frequencia com que as palavras ocorrem e sua relação com a classificação (neutro, positivo, negativo)
 ######################################
 
-vectorizer = CountVectorizer(analyzer = "word")#, ngram_range=(1,2))#, stop_words = stops, lowercase=False)#, min_df = 1)
+result = process_model.process_data_bag_of_words(tweets, classificacao, x_test, y_test, stopwords = stops)
 
-#    lowercase (default True) convert all text to lowercase before tokenizing
-#    min_df (default 1) remove terms from the vocabulary that occur in fewer than min_df documents (in a large corpus this may be set to 15 or higher to eliminate very rare words)
-#    vocabulary ignore words that do not appear in the provided list of words
-#    strip_accents remove accents
-#    token_pattern (default u'(?u)\b\w\w+\b') regular expression identifying tokens–by default words that consist of a single character (e.g., ‘a’, ‘2’) are ignored, setting token_pattern to '(?u)\b\w+\b' will include these tokens
-#    tokenizer (default unused) use a custom function for tokenizing
+#process_model.process_data_bag_of_words(x_train, y_train, x_test, y_test, stopwords = stops)
 
-
-freq_tweets = vectorizer.fit_transform(tweets)
-
-words = np.array(vectorizer.get_feature_names())
-
-#Aplica o algoritmo Naive Bayes para treinar sobre os dados
-modelo = MultinomialNB()
-modelo.fit(freq_tweets, classificacao)
-
-resultados = cross_val_predict(modelo, freq_tweets, classificacao, cv = 10)
-
-###########################################
-#imprime os resultados
-###########################################
-sentimentos = ["Positivo", "Neutro", "Negativo"]
-
-# Lembrando que:
-#    : precision = true positive / (true positive + false positive)
-#    : recall    = true positive / (true positive + false negative)
-#    : f1-score  = 2 * ((precision * recall) / (precision + recall))
-
-print(metrics.classification_report(classificacao, resultados, sentimentos))
-print('Accuracy: ' + str(metrics.accuracy_score(classificacao, resultados)))
-print(pd.crosstab(classificacao, resultados, rownames = ["Real"], colnames = ["Predito"], margins = True))
+##########################################
+# Plota gráficos para análise dos dados
+##########################################
+if generate_visualization:
+    visualization.plot_prediction_result(result)
+    visualization.plot_dataset_class_distribution(dataset)
+    visualization.distr_qtd_carac(dataset)
+    visualization.wordcloud(dataset, stops)
