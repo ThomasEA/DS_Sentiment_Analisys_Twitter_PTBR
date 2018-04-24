@@ -72,7 +72,7 @@ print("Total de instâncias de treino {0} com {1:.2f}% Negativo, {2:.2f}% Positi
 
 #visualization.plot_prediction_result(result, title='Acurácia x Classificador x N-Grams', filename='accuracia_classificador_ngrams.png')
 
-process_model.process_data_bag_of_words(x_train, y_train, x_test, y_test, stopwords = stops, n_grams = 3)
+process_model.process_data_bag_of_words(x_train, y_train, x_test, y_test, stopwords = stops, n_grams = 1)
 
 ##########################################
 # Plota gráficos para análise dos dados

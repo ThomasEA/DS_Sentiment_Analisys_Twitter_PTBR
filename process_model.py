@@ -127,6 +127,10 @@ def apply_model(model, X, labels, vectorizer):
         
     result = model.predict(test_corpus)
     
+    for input, prediction, label in zip(X, result, labels):
+        if prediction != label:
+            print(input, 'has been classified as ', prediction, 'and should be ', label) 
+    
     total               = metrics.accuracy_score(labels, result)
     f1score             = metrics.f1_score(labels, result, sentimentos, average='weighted')
     recall              = metrics.recall_score(labels, result, sentimentos, average='weighted')
