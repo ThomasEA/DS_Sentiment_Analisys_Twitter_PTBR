@@ -7,9 +7,6 @@ Created on Thu Apr 19 23:26:50 2018
 Análise de sentimento sobre tweets em PT-BR, classificados como negativo, neutro e positivo
 """
 
-import nltk
-import re
-import random
 import pandas as pd
 import numpy as np
 
@@ -18,16 +15,6 @@ import vis_data as visualization
 import process_model as process_model
 
 from sklearn.cross_validation import train_test_split
-
-
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import LinearSVC
-from sklearn.naive_bayes import MultinomialNB
-from sklearn import metrics
-from sklearn.model_selection import cross_val_predict
-
-
 
 # Limpa as variáveis a cada execução
 def clear_all():
@@ -44,6 +31,8 @@ generate_visualization = True
 
 #carrega o dataset de tweets
 df = pd.read_csv('./input/Tweets_Mg.csv', encoding='utf-8')
+
+visualization.distr_qtd_carac(df)
 
 ################################################################
 # Faz uma limpeza prévia da coluna de texto do tweet
@@ -79,15 +68,16 @@ print("Total de instâncias de treino {0} com {1:.2f}% Negativo, {2:.2f}% Positi
 # [1,8,2,6] -> frequencia com que as palavras ocorrem e sua relação com a classificação (neutro, positivo, negativo)
 ######################################
 
-result = process_model.process_data_bag_of_words(tweets, classificacao, x_test, y_test, stopwords = stops)
+#result = process_model.process_data_bag_of_words(tweets, classificacao, x_test, y_test, stopwords = stops, n_grams = 1)
 
-#process_model.process_data_bag_of_words(x_train, y_train, x_test, y_test, stopwords = stops)
+#visualization.plot_prediction_result(result, title='Acurácia x Classificador x N-Grams', filename='accuracia_classificador_ngrams.png')
+
+process_model.process_data_bag_of_words(x_train, y_train, x_test, y_test, stopwords = stops, n_grams = 3)
 
 ##########################################
 # Plota gráficos para análise dos dados
 ##########################################
 if generate_visualization:
-    visualization.plot_prediction_result(result)
     visualization.plot_dataset_class_distribution(dataset)
-    visualization.distr_qtd_carac(dataset)
-    visualization.wordcloud(dataset, stops)
+    
+    #visualization.wordcloud(dataset, stops)
