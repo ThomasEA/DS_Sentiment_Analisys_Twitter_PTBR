@@ -14,6 +14,9 @@ from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+#Encontra as features mais relevantes
+from sklearn.feature_selection import chi2
+
 #Importando e configurando classificador (SVM)
 from sklearn.svm import LinearSVC
 #Importando e configurando classificador (Naive Bayes)
@@ -23,7 +26,34 @@ from sklearn.tree import DecisionTreeClassifier
 #Importando gerador de parametros otimizados para SVM e Decicion Tree
 from sklearn.model_selection import GridSearchCV
 
-sentimentos = ["Positivo", "Neutro", "Negativo"]
+sentimentos = ["Negativo", "Neutro", "Positivo"]
+
+def most_relevant_features(vectorizer, X, labels, count = 10):
+    #Calcula as features mais relevantes para o processo
+    vect_features = vectorizer.fit_transform(X).toarray()
+    print(str.format("Instances {0} -- Features {1}", vect_features.shape[0], vect_features.shape[1]))
+    
+    vocabulario = vectorizer.get_feature_names()
+    
+    N = 2
+    for sentiment, text in zip(labels, X):
+        features_chi2 = chi2(vect_features, labels == sentiment)
+        indices = np.argsort(features_chi2[0])
+        feature_names = np.array(vectorizer.get_feature_names())[indices]
+        unigrams = [v for v in feature_names if len(v.split(' ')) == 1]
+        print("# '{}'".format(sentiment))
+        print("   . Unigrams correlacionados:\n {}".format('\n.'.join(unigrams[-N:])))
+    
+    #####################################################
+
+def most_relevant_feature_for_class(vectorizer, classifier, labels, n=15):
+    for classlabel in labels:	
+        labelid = list(classifier.classes_).index(classlabel)
+        feature_names = vectorizer.get_feature_names()
+        topn = sorted(zip(classifier.coef_[labelid], feature_names))[-n:]
+	
+        for coef, feat in topn:
+            print("{}, {}, {}".format(classlabel, feat, coef))
 
 def cross_validate(model, X, labels, vectorizer, n_folds = 10):
     """
@@ -52,6 +82,8 @@ def cross_validate(model, X, labels, vectorizer, n_folds = 10):
         
         recall -- recall score
     """
+    #most_relevant_features(vectorizer, X, labels, 15)
+    
     kf = StratifiedKFold(n_splits=n_folds)
     
     total = 0
@@ -97,6 +129,8 @@ def cross_validate(model, X, labels, vectorizer, n_folds = 10):
     
     #print(pd.crosstab(y_train, result, rownames = ["Real"], colnames = ["Predito"], margins = True))    
 
+    most_relevant_feature_for_class(vectorizer, model, sentimentos, 15)
+
     return totalMat, total, f1score, precision, recall
 
 def apply_model(model, X, labels, vectorizer):
@@ -127,9 +161,11 @@ def apply_model(model, X, labels, vectorizer):
         
     result = model.predict(test_corpus)
     
-    for input, prediction, label in zip(X, result, labels):
-        if prediction != label:
-            print(input, 'has been classified as ', prediction, 'and should be ', label) 
+# =============================================================================
+#     for input, prediction, label in zip(X, result, labels):
+#         if prediction != label:
+#             print(input, 'has been classified as ', prediction, 'and should be ', label) 
+# =============================================================================
     
     total               = metrics.accuracy_score(labels, result)
     f1score             = metrics.f1_score(labels, result, sentimentos, average='weighted')
